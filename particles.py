@@ -3,7 +3,7 @@ import numpy as np
 
 
 def load_time(t,n=100):
-    dat=np.fromfile('outputs/particles_{0:d}.dat'.format(t)).reshape(n,7)
+    dat=np.fromfile('outputs/particles_{0:d}.dat'.format(t)).reshape(n,4)
     return dat
 
 def animate(irange,n=100):
@@ -17,6 +17,7 @@ def animate(irange,n=100):
     for d,t in zip(dat[1:],times[1:]):
         update_plot(d,lineq,linep)
         axes[0].set_title('%d'%t)
+        plt.draw()
         fig.canvas.draw()
 
 def load_energy(irange,n=1e3):
@@ -37,7 +38,7 @@ def plot_time(dat,ax=None):
         fig,axes=plt.subplots(1,2,figsize=(15,10))
 
     lineq,=axes[0].plot(dat[:,0],dat[:,1],'.',markersize=5)
-    linep,=axes[1].plot(dat[:,3],dat[:,4],'.',markersize=5)
+    linep,=axes[1].plot(dat[:,2],dat[:,3],'.',markersize=5)
     axes[0].set_xlabel('x')
     axes[0].set_ylabel('y')
     axes[1].set_xlabel('vx')
@@ -46,5 +47,5 @@ def plot_time(dat,ax=None):
 
 def update_plot(dat,lineq,linep):
     lineq.set_data( dat[:,0],dat[:,1])
-    linep.set_data( dat[:,3],dat[:,4])
+    linep.set_data( dat[:,2],dat[:,3])
     return
