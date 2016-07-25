@@ -1,0 +1,69 @@
+\documentclass[iop,onecolumn,numberedappendix,appendixfloats]{emulateapj}
+\usepackage{amsmath,amssymb,amstext}
+
+\usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=magenta]{hyperref} 
+\renewcommand*{\sectionautorefname}{Section}
+\usepackage[all]{hypcap} %Links go ts; breaks on deluxetables (use \capstartfalse \capstarttrue to fix it)
+
+%\usepackage{aas_macros}
+%\usepackage{natbib}
+%\bibliographystyle{apj}
+
+\shorttitle{Short Title}
+\shortauthors{Dempsey }
+
+\begin{document}
+
+\title{Stuff}
+\author{Adam M. Dempsey}
+\affil{Affiliations}
+
+\begin{abstract}
+Abstract.
+\end{abstract}
+
+\keywords{keywords}
+\maketitle
+
+
+\section{Likelihood Function}
+
+Define the distribution function, $f(\mathbf{x})$ for $n$ particles, as 
+\begin{equation}
+f(\mathbf{x}) = \frac{1}{n} \sum_i  K\left(   \mathbf{x} - \mathbf{x}_i \right)
+\end{equation}
+where the kernel is,
+\begin{equation}
+K(\mathbf{x}) = \left( 2 \pi \right)^{-d/2} e^{ - \frac{1}{2} \mathbf{x}^T \mathbf{H}^{-1} \mathbf{x} }
+\end{equation}
+where the covariance matrix is, e.g
+\begin{equation}
+H_{ij} = \sigma_i \delta_{ij} 
+\end{equation}
+We calculate a time-averaged distribution function, $\langle f \rangle = \int \frac{dt}{T} f(\mathbf{x}, t)$. Numerically we evaluate this as,
+\begin{equation}
+\langle f \rangle = \frac{1}{N} \sum_{n} f^n(\mathbf{x}) =  \frac{1}{N n } \sum_{n} \sum_i K ( \mathbf{x} - \mathbf{x}_i^n )
+\end{equation}
+We define the likelihood as the joint probability of drawing $m$ points from $\langle f \rangle$. 
+\begin{equation}
+\mathcal{L} = \prod_j \langle f \rangle (\mathbf{x}_j)
+\end{equation}
+with the log-likelihood being,
+\begin{equation}
+\ln \mathcal{L} = \sum_j \ln \left( \langle f \rangle (\mathbf{x}_j) \right) =  \sum_j \ln \left(  \frac{1}{N n } \sum_{n} \sum_i K ( \mathbf{x_j} - \mathbf{x}_i^n ) \right) 
+\end{equation}
+Regions of low probability correspond to regions of low phase space density.
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}
