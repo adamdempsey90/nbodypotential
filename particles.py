@@ -2,22 +2,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def load_time(t,n=100):
-    dat=np.fromfile('outputs/particles_{0:d}.dat'.format(t)).reshape(n,4)
+def load_time(t,n=100,nf=4):
+    dat=np.fromfile('outputs/particles_{0:d}.dat'.format(t))
+    dat = dat.reshape(len(dat)/nf,nf)
     return dat
 
-def animate(irange,n=100):
+def animate(irange,n=100,nf=4):
     dat=[]
     times=[]
     for i,j in enumerate(irange):
-        dat.append(load_time(j,n=n))
+        dat.append(load_time(j,n=n,nf=nf))
         times.append(i)
     lineq,linep,fig,axes = plot_time(dat[0])
 
     for d,t in zip(dat[1:],times[1:]):
+        plt.pause(.0000001)
         update_plot(d,lineq,linep)
         axes[0].set_title('%d'%t)
-        plt.draw()
+        #plt.draw()
         fig.canvas.draw()
 
 def load_energy(irange,n=1e3):
