@@ -3,6 +3,7 @@
 #include "figtree_consts.h"
 
 
+extern real *targets, *weights, *kde_work;
 
 void kde(double *source_points, double *target_points, double *q, double h, int n_source, int n_target, int dims, double tol, double *res) {
     /* Evaluate the phase space density in dims dimensions 
@@ -37,7 +38,7 @@ void kde(double *source_points, double *target_points, double *q, double h, int 
     //printf("Dims    : %d\nN Source: %d\nN Target: %d\nW       : %d\nh       : %lg\ntol     : %.2e\n",
 //            dims,n_source,n_target,W,h,tol);
 
-    figtree(dims, n_source, n_target, 1, source_points, h, q , target_points, tol, res, params.kdemethod,FIGTREE_PARAM_NON_UNIFORM); 
+    figtree(dims, n_source, n_target, 1, source_points, h, q , target_points, tol, res, params.kdemethod,FIGTREE_PARAM_NON_UNIFORM,FIGTREE_TRUNC_CLUSTER, 0); 
 
     return;
 
@@ -59,4 +60,20 @@ double log_likelihood(double *source_points, double *target_points, double *q, d
     return tot;
 }
 
+void add_kde(double *source_points, double *kde_tot) {
+    /* Add kde from source points to our total kde */
+
+    int i;
+    for(i=0;i<params.ntargets;i++) kde_work[i] = 0;
+    kde(source_points, targets, weights, params.sigma, params.nstars, params.ntargets, DIMS, params.tol,kde_work);
+
+#ifdef _OPENMP
+#pragma omp parallel for private(i);
+#endif
+    for(i=0;i<params.ntargets;i++) {
+        kde_tot[i] += kde_work[i];
+    }
+
+    return;
+}
 

@@ -28,8 +28,24 @@ void set_var(char *name,int int_val, real real_val, int bool_val, char *strval) 
         params.tol = real_val;
 
     }
+    else if (strcmp(name,"SIZE") == 0) {	
+        params.size = real_val;
+
+    }
+    else if (strcmp(name,"SIMPLEX_STEP") == 0) {	
+        params.simplex_step = real_val;
+
+    }
     else if (strcmp(name,"NTARGETS") == 0) {	
         params.ntargets = int_val;
+
+    }
+    else if (strcmp(name,"NPARS") == 0) {	
+        params.npars = int_val;
+
+    }
+    else if (strcmp(name,"GENERATE") == 0) {	
+        params.generate = bool_val;
 
     }
     else if (strcmp(name,"TARGETFILE") == 0) {	

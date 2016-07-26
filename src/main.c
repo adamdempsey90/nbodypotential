@@ -1,5 +1,8 @@
 #include "potential.h"
+#include <string.h>
 
+
+real *targets, *source, *weights, *kde_res, *kde_work;
 
 int main(int argc, char *argv[]) {
 
@@ -22,52 +25,57 @@ int main(int argc, char *argv[]) {
 
     params.n = (int)(real)sqrt(params.nstars);
     params.nstars = params.n*params.n;
+    params.ntargets = params.nstars;
 
 
-    real *targets = (real *)malloc(sizeof(real)*params.ntargets*DIMS);
+    targets = (real *)malloc(sizeof(real)*params.ntargets*DIMS);
     NULLCHECK(targets,"targets");
-    real *source = (real *)malloc(sizeof(real)*params.nstars*DIMS);
+    source = (real *)malloc(sizeof(real)*params.nstars*DIMS);
     NULLCHECK(source,"source");
-    real *weights = (real *)malloc(sizeof(real)*params.nstars);
+    weights = (real *)malloc(sizeof(real)*params.nstars);
     NULLCHECK(weights,"weights");
-    real *kde_res = (real *)malloc(sizeof(real)*params.ntargets);
+    kde_res = (real *)malloc(sizeof(real)*params.ntargets);
+    NULLCHECK(kde_res,"kde_res");
+    kde_work = (real *)malloc(sizeof(real)*params.ntargets);
     NULLCHECK(kde_res,"kde_res");
 
-    FILE *f = fopen(params.targetfile,"r");
-    fread(targets,sizeof(real),params.ntargets*DIMS,f);
-    fclose(f);
 
 
     real pot_pars[2] = {atof(argv[2]), atof(argv[3])};
 
-    gpu_evolve(pot_pars, targets,source);
-
-
     int i;
 
-    for(i=0;i<params.nstars;i++) {
-        weights[i] = pow(2*M_PI,-DIMS*.5) / (real)params.nstars; 
+    gpu_init();
+
+    if (params.generate) {
+        generate_system(pot_pars, source, FALSE);
+        output_init(source,pot_pars);
     }
+    else {
+        FILE *f = fopen(params.targetfile,"r");
+        fread(targets,sizeof(real),params.ntargets*DIMS,f);
+        fclose(f);
+        memcpy(source,targets,sizeof(real)*params.ntargets*DIMS);
 
-    for(i=0;i<params.ntargets;i++) kde_res[i] = 0;
-
-
-    double tot;
-    
-    tot = log_likelihood(source, targets, weights, kde_res, params.sigma, params.nstars, params.ntargets, DIMS, params.tol);
-
-    for(i=0;i<params.ntargets;i++) { 
-        if (kde_res[i] == 0.0) {
-            printf("We have a zero kde value\n");
-            break;
+        for(i=0;i<params.nstars;i++) {
+            weights[i] = pow(2*M_PI,-DIMS*.5) / (real)params.nstars; 
         }
-    }
-    printf("Final log-likelihood = %lg\n",tot);
 
+        for(i=0;i<params.ntargets;i++) { 
+            kde_res[i] = 0;
+            kde_work[i] = 0;
+        }
+
+
+        int status = minimize(pot_pars);
+    }
+
+    gpu_free();
     FREE(targets);
     FREE(source);
     FREE(weights);
     FREE(kde_res);
+    FREE(kde_work);
     return 0;
 
 }

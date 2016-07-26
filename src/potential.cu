@@ -27,14 +27,24 @@ __device__ void potential(real x, real y, real *params, real *res) ;
  void potential_cpu(real x, real y, real *params, real *res) ;
 __device__ void leapfrog_step(Particle *p, real *params) ;
 void set_particle_dt(Particle *p); 
-void set_particle_ic(real *x, real *y,real *vx, real *vy, int n,real *params);
+void set_particle_ic(real *x, real *y,real *vx, real *vy, int n);
 __device__ void set_energy(Particle *p,real *params);
  void set_energy_cpu(Particle *p,real *params);
 void read_evaluation_points(char *fname, real *points, int n);
+void copy_backward(real *p);
+void copy_forward(real *p);
+void gpu_init(void);
+void gpu_free(void);
 
 
-void gpu_evolve(real *pot_pars, real *points, real *final) {
-    int i,k;
+real *h_x, *h_y, *h_vx, *h_vy;
+real *xi, *yi, *vxi, *vyi;
+real *d_x, *d_y, *d_vx, *d_vy;
+real *params_dev;
+
+
+
+void gpu_init(void) {
     cudaError_t cudaStatus;
     size_t size; 
 
@@ -43,33 +53,8 @@ void gpu_evolve(real *pot_pars, real *points, real *final) {
     real dt = params.dt;
     int threadsPerBlock= params.threads_per_block;
     int n = params.n;
-
-    //nevals = atoi(argv[4]);
-    //int jstart = atoi(argv[5]);
-    //int seed = atoi(argv[6]);
-   // params[0] = atof(argv[8]);
-   //  params[1] = atof(argv[9]);
-    
     size = params.nstars*sizeof(real);
 
-//    dim3 threadsPerBlock(8,8);
-//    dim3 numBlocks(n/threadsPerBlock.x, n/threadsPerBlock.y);
-    int blocksPerGrid = (ntot + threadsPerBlock-1)/threadsPerBlock;
-
-    printf("Using NTOT=%.4e\tnt=%d\tq^2=%f\tR^2=%f\n",(real)ntot,nt,pot_pars[0],pot_pars[1]);
-    printf("Using %d blocksPerGrid, %d threadsPerBlock\n",threadsPerBlock,blocksPerGrid);
-
-
-
-    //Do kernel activity here
-
-
-
-    real *h_x, *h_y, *h_vx, *h_vy;
-    real *xi, *yi, *vxi, *vyi;
-    real *d_x, *d_y, *d_vx, *d_vy;
-
-    
     h_x = (real *)malloc(size);
     NULLCHECK(h_x,"h_x");
     h_y = (real *)malloc(size);
@@ -86,12 +71,44 @@ void gpu_evolve(real *pot_pars, real *points, real *final) {
     GPUERRCHK( cudaMalloc(&d_vy,size) );
 
 
-    real *params_dev;
-    GPUERRCHK( cudaMalloc(&params_dev,sizeof(real)*2) );
-    GPUERRCHK( cudaMemcpy(params_dev,pot_pars,sizeof(real)*2,cudaMemcpyHostToDevice) );
+    GPUERRCHK( cudaMalloc(&params_dev,sizeof(real)*params.npars) );
+    return;
 
-    printf("Potential Parameters: %lg\t%lg\n",pot_pars[0],pot_pars[1]);
+}
 
+real gpu_evolve(const real *pot_pars, real *points, const real *ic, real *kde_tot, int silent) {
+    int i,k;
+    cudaError_t cudaStatus;
+    size_t size; 
+
+    int ntot = params.nstars;
+    int nt = params.nt; 
+    real dt = params.dt;
+    int threadsPerBlock= params.threads_per_block;
+    int n = params.n;
+
+    size = params.nstars*sizeof(real);
+
+    int blocksPerGrid = (ntot + threadsPerBlock-1)/threadsPerBlock;
+
+
+    if (!silent) {
+        printf("Using NTOT=%.4e\tnt=%d\tq^2=%f\tR^2=%f\n",(real)ntot,nt,pot_pars[0],pot_pars[1]);
+        printf("Using %d blocksPerGrid, %d threadsPerBlock\n",threadsPerBlock,blocksPerGrid);
+    }
+
+
+
+    //Do kernel activity here
+
+
+
+
+    GPUERRCHK( cudaMemcpy(params_dev,pot_pars,sizeof(real)*params.npars,cudaMemcpyHostToDevice) );
+
+    if (!silent) {
+        printf("Potential Parameters: %lg\t%lg\n",pot_pars[0],pot_pars[1]);
+    }
 
 
     int j;
@@ -101,14 +118,23 @@ void gpu_evolve(real *pot_pars, real *points, real *final) {
     output(0,xi,yi,vxi,vyi,n);
     printf("allocating\n");
 */  
-
+/*
     for(i=0;i<ntot;i++) {
         h_x[i] =  points[0 + i*DIMS];
         h_y[i] =  points[1 + i*DIMS];
         h_vx[i] = points[2 + i*DIMS];
         h_vy[i] = points[3 + i*DIMS];
     }
-    output(0,h_x,h_y,h_vx,h_vy,n);
+*/
+//    output(0,h_x,h_y,h_vx,h_vy,n);
+
+    memcpy(points,ic,sizeof(real)*ntot*DIMS);
+
+    for(i=0;i<ntot;i++) kde_tot[i] = 0.0;  // Initial points
+
+
+
+    copy_forward(points);
 
     GPUERRCHK( cudaMemcpy(d_x,h_x, size,cudaMemcpyHostToDevice) );
     GPUERRCHK( cudaMemcpy(d_y,h_y, size,cudaMemcpyHostToDevice) );
@@ -148,21 +174,33 @@ void gpu_evolve(real *pot_pars, real *points, real *final) {
         GPUERRCHK( cudaMemcpy(h_y,d_y, size,cudaMemcpyDeviceToHost) );
         GPUERRCHK( cudaMemcpy(h_vx,d_vx, size,cudaMemcpyDeviceToHost) );
         GPUERRCHK( cudaMemcpy(h_vy,d_vy, size,cudaMemcpyDeviceToHost) );
-        output(j,h_x,h_y,h_vx,h_vy,n);
-        printf("##########--%3.2f%%--##########\r",100*(real)(j+1)/nt);
-        fflush(stdout);
+
+        copy_backward(points);
+        add_kde(points, kde_tot);
+
+        //ll += log_likelihood(points, targets, weights, kde_res, params.sigma, params.nstars, params.ntargets, DIMS, params.tol)/dt;
+
+
+        //output(j,h_x,h_y,h_vx,h_vy,n);
+        if (!silent) {
+            printf("##########--%3.2f%%--##########\r",100*(real)(j+1)/nt);
+            fflush(stdout);
+        }
     }
-    printf("\n");
-
-
+    real ll = 0;
+#ifdef _OPENMP
+#pragma omp parallel for reduction(ll:-)
+#endif
     for(i=0;i<ntot;i++) {
-        final[0 + i*DIMS] = h_x[i] ; 
-        final[1 + i*DIMS] = h_y[i]   ;
-        final[2 + i*DIMS] = h_vx[i] ;
-        final[3 + i*DIMS] = h_vy[i] ;
+        ll -= log( kde_tot[i] / (real) nt);
+        
     }
 
 
+    return ll;
+}
+
+void gpu_free(void) {
     FREE(h_x);
     FREE(h_y);
     FREE(h_vx);
@@ -173,6 +211,57 @@ void gpu_evolve(real *pot_pars, real *points, real *final) {
     GPUERRCHK( cudaFree(d_vy) );
     GPUERRCHK( cudaFree(params_dev) );
 
+    return;
+}
+void generate_system(const real *pot_pars, real *points, int silent) {
+    int i,k;
+    cudaError_t cudaStatus;
+    size_t size; 
+
+    int ntot = params.nstars;
+    int nt = params.nt; 
+    real dt = params.dt;
+    int threadsPerBlock= params.threads_per_block;
+    int n = params.n;
+
+    size = params.nstars*sizeof(real);
+
+    int blocksPerGrid = (ntot + threadsPerBlock-1)/threadsPerBlock;
+
+
+    if (!silent) {
+        printf("Using NTOT=%.4e\tnt=%d\tq^2=%f\tR^2=%f\n",(real)ntot,nt,pot_pars[0],pot_pars[1]);
+        printf("Using %d blocksPerGrid, %d threadsPerBlock\n",threadsPerBlock,blocksPerGrid);
+    }
+
+
+
+    GPUERRCHK( cudaMemcpy(params_dev,pot_pars,sizeof(real)*params.npars,cudaMemcpyHostToDevice) );
+
+    if (!silent) {
+        printf("Potential Parameters: %lg\t%lg\n",pot_pars[0],pot_pars[1]);
+    }
+
+
+    int j;
+
+    set_particle_ic(h_x,h_y,h_vx,h_vy,n);
+  
+    GPUERRCHK( cudaMemcpy(d_x,h_x, size,cudaMemcpyHostToDevice) );
+    GPUERRCHK( cudaMemcpy(d_y,h_y, size,cudaMemcpyHostToDevice) );
+    GPUERRCHK( cudaMemcpy(d_vx,h_vx, size,cudaMemcpyHostToDevice) );
+    GPUERRCHK( cudaMemcpy(d_vy,h_vy, size,cudaMemcpyHostToDevice) );
+
+    evolve<<<blocksPerGrid,threadsPerBlock>>>(d_x,d_y,d_vx,d_vy,nt*dt,n,params_dev);
+
+    GPUERRCHK( cudaPeekAtLastError() );
+    GPUERRCHK( cudaMemcpy(h_x,d_x, size,cudaMemcpyDeviceToHost) );
+    GPUERRCHK( cudaMemcpy(h_y,d_y, size,cudaMemcpyDeviceToHost) );
+    GPUERRCHK( cudaMemcpy(h_vx,d_vx, size,cudaMemcpyDeviceToHost) );
+    GPUERRCHK( cudaMemcpy(h_vy,d_vy, size,cudaMemcpyDeviceToHost) );
+
+    copy_backward(points);
+    
     return;
 }
 
@@ -282,7 +371,7 @@ __device__ void dy_potential(real x, real y, real *params,real *res) {
     *res =  2*y/( q2*(R2 + x*x) + y*y); 
     return;
 }
-void set_particle_ic(real *x, real *y,real *vx, real *vy, int n,real *params) {
+void set_particle_ic(real *x, real *y,real *vx, real *vy, int n) {
 
     int i,j;
 
@@ -300,5 +389,26 @@ void set_particle_ic(real *x, real *y,real *vx, real *vy, int n,real *params) {
 
 void set_particle_dt(Particle *p) {
     p->dt = .1;
+    return;
+}
+
+void copy_forward(real *p) {
+    int i;
+    for(i=0;i<params.ntargets;i++) {
+        h_x[i]  = p[0 + i*DIMS];
+        h_y[i]  = p[1 + i*DIMS];
+        h_vx[i] = p[2 + i*DIMS];
+        h_vy[i] = p[3 + i*DIMS];
+    }
+    return;
+}
+void copy_backward(real *p) {
+    int i;
+    for(i=0;i<params.ntargets;i++) {
+        p[0 + i*DIMS]=h_x[i] ; 
+        p[1 + i*DIMS]=h_y[i]  ;
+        p[2 + i*DIMS]=h_vx[i] ;
+        p[3 + i*DIMS]=h_vy[i] ;
+    }
     return;
 }

@@ -50,8 +50,8 @@ def load_energy(irange,n=1e3):
     for i in irange:
         dat = np.hstack( (dat,load_time(i,n=n)[:,-1].reshape(s) *norm) )
     return dat
-def plot_time(dat,ax=None,pointstyle='.b'):
-    if ax is None:
+def plot_time(dat,axes=None,pointstyle='.b',fig=None):
+    if axes is None:
         fig,axes=plt.subplots(1,2,figsize=(15,10))
 
     lineq,=axes[0].plot(dat[:,0],dat[:,1],pointstyle,markersize=5)
