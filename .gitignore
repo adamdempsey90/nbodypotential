@@ -1,3 +1,4 @@
 *.dat
 poten
 *.pyc
+*.o

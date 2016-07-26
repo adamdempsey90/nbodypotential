@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gcc -o pot main.c read_pars.c -I.
