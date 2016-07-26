@@ -37,7 +37,7 @@ void kde(double *source_points, double *target_points, double *q, double h, int 
     //printf("Dims    : %d\nN Source: %d\nN Target: %d\nW       : %d\nh       : %lg\ntol     : %.2e\n",
 //            dims,n_source,n_target,W,h,tol);
 
-    figtree(dims, n_source, n_target, 1, source_points, h, q , target_points, tol, res, FIGTREE_EVAL_AUTO,FIGTREE_PARAM_NON_UNIFORM); 
+    figtree(dims, n_source, n_target, 1, source_points, h, q , target_points, tol, res, params.kdemethod,FIGTREE_PARAM_NON_UNIFORM); 
 
     return;
 

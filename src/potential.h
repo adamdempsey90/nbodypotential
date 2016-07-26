@@ -15,9 +15,9 @@
 typedef struct Parameters {
 
     int n,nstars,nt,threads_per_block,ntargets;
-
+    int kdemethod;
     real dt,sigma,tol;
-    char outputdir[MAXSTR], targetfile[MAXSTR];
+    char outputdir[MAXSTR], targetfile[MAXSTR], kdemethod_str[MAXSTR];
 
 
 } Parameters;

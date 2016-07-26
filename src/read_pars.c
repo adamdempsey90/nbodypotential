@@ -40,6 +40,33 @@ void set_var(char *name,int int_val, real real_val, int bool_val, char *strval) 
         sprintf(params.outputdir, "%s",strval);
 
     }
+    else if (strcmp(name,"KDEMETHOD") == 0) {	
+        sprintf(params.kdemethod_str, "%s",strval);
+
+        if (strcmp(strval,  "direct") == 0) {
+            params.kdemethod = 0;
+        }
+        else if (strcmp(strval,  "ifgt") == 0) {
+            params.kdemethod = 1;
+        }
+        else if (strcmp(strval,  "direct_tree") == 0) {
+            params.kdemethod = 2;
+        }
+        else if (strcmp(strval,  "ifgt_tree") == 0) {
+            params.kdemethod = 3;
+        }
+        else if (strcmp(strval,  "auto") == 0) {
+            params.kdemethod = 4;
+        }
+        else if (strcmp(strval,  "size") == 0) {
+            params.kdemethod = 5;
+        }
+        else {
+            printf("Invalid KDEMETHOD, defaulting to auto.\n");
+            params.kdemethod = 4;
+        }
+
+    }
     
 
     return;
